@@ -11,6 +11,10 @@ import {
 } from "../../src/core";
 
 const apiKey = process.env[DEEPSEEK_API_KEY_ENV];
+const PROVIDER_ID = "deepseek-custom";
+const EXACT_OK_PROMPT = "Reply with exactly ok";
+const TOOL_PROMPT =
+  "Call tool emit_result with value ok. Do not answer directly.";
 const toolSchema = {
   type: "object",
   properties: {
@@ -38,10 +42,15 @@ const providerConfig = buildDeepSeekProviderConfig(
 const models = providerConfig.models.map((model) => ({
   ...model,
   api: providerConfig.api,
-  provider: "deepseek-custom",
-  apiKey: apiKey ?? model.apiKey,
+  provider: PROVIDER_ID,
 }));
 const modelCases = models.map((model) => [model.id, model] as const);
+
+type LiveModel = (typeof models)[number];
+type StreamContext = Parameters<typeof providerConfig.streamSimple>[1];
+type StreamOptions = NonNullable<
+  Parameters<typeof providerConfig.streamSimple>[2]
+>;
 
 function userMessage(content: string) {
   return {
@@ -87,45 +96,43 @@ async function consumeStream(
   return doneMessage;
 }
 
+async function runModel(
+  model: LiveModel,
+  context: StreamContext,
+  options?: Omit<StreamOptions, "apiKey">,
+) {
+  return consumeStream(
+    providerConfig.streamSimple(model, context, { apiKey, ...options }),
+  );
+}
+
 describe.skipIf(!apiKey)("DeepSeek live provider catalog", () => {
   test("exposed model set is non-empty", () => {
     assert.notEqual(models.length, 0);
   });
 
   test.each(modelCases)("%s basic text generation", async (_modelId, model) => {
-    const message = await consumeStream(
-      providerConfig.streamSimple(
-        model,
-        {
-          systemPrompt: "You are terse. Reply with exactly ok.",
-          messages: [userMessage("Reply with exactly ok")],
-        },
-        {
-          apiKey,
-          maxTokens: 64,
-        },
-      ),
+    const message = await runModel(
+      model,
+      {
+        systemPrompt: "You are terse. Reply with exactly ok.",
+        messages: [userMessage(EXACT_OK_PROMPT)],
+      },
+      { maxTokens: 64 },
     );
 
     assert.match(textFromMessage(message).toLowerCase(), /ok/);
   });
 
   test.each(modelCases)("%s tool roundtrip", async (_modelId, model) => {
-    const prompt =
-      "Call tool emit_result with value ok. Do not answer directly.";
-    const firstMessage = await consumeStream(
-      providerConfig.streamSimple(
-        model,
-        {
-          systemPrompt: "You are a tool-use test harness.",
-          messages: [userMessage(prompt)],
-          tools,
-        },
-        {
-          apiKey,
-          maxTokens: 256,
-        },
-      ),
+    const firstMessage = await runModel(
+      model,
+      {
+        systemPrompt: "You are a tool-use test harness.",
+        messages: [userMessage(TOOL_PROMPT)],
+        tools,
+      },
+      { maxTokens: 256 },
     );
     const toolCall = firstMessage.content.find(
       (content) => content.type === "toolCall",
@@ -133,23 +140,18 @@ describe.skipIf(!apiKey)("DeepSeek live provider catalog", () => {
 
     assert.ok(toolCall, `expected ${model.id} to emit a tool call`);
 
-    const secondMessage = await consumeStream(
-      providerConfig.streamSimple(
-        model,
-        {
-          systemPrompt: "You are a tool-use test harness.",
-          messages: [
-            userMessage(prompt),
-            firstMessage,
-            toolResultMessage(toolCall.id, toolCall.name),
-          ],
-          tools,
-        },
-        {
-          apiKey,
-          maxTokens: 256,
-        },
-      ),
+    const secondMessage = await runModel(
+      model,
+      {
+        systemPrompt: "You are a tool-use test harness.",
+        messages: [
+          userMessage(TOOL_PROMPT),
+          firstMessage,
+          toolResultMessage(toolCall.id, toolCall.name),
+        ],
+        tools,
+      },
+      { maxTokens: 256 },
     );
 
     assert.notEqual(
@@ -162,21 +164,13 @@ describe.skipIf(!apiKey)("DeepSeek live provider catalog", () => {
   test.each(modelCases)(
     "%s thinking mode can be enabled",
     async (_modelId, model) => {
-      const message = await consumeStream(
-        providerConfig.streamSimple(
-          model,
-          {
-            systemPrompt: "You are terse. Reply with exactly ok.",
-            messages: [
-              userMessage("Think briefly, then reply with exactly ok"),
-            ],
-          },
-          {
-            apiKey,
-            reasoning: "high",
-            maxTokens: 256,
-          },
-        ),
+      const message = await runModel(
+        model,
+        {
+          systemPrompt: "You are terse. Reply with exactly ok.",
+          messages: [userMessage("Think briefly, then reply with exactly ok")],
+        },
+        { reasoning: "high", maxTokens: 256 },
       );
 
       assert.match(textFromMessage(message).toLowerCase(), /ok/);
