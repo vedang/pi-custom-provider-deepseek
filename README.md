@@ -1,5 +1,9 @@
 # pi-custom-provider-deepseek
 
+<p align="center">
+  <img src="images/banner.png" alt="pi-custom-provider-deepseek hero banner" width="100%">
+</p>
+
 DeepSeek OpenAI-compatible custom provider for Pi.
 
 The provider uses:
