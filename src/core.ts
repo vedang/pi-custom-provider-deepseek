@@ -92,6 +92,29 @@ export function applyDeepSeekThinkingPayload(
   reasoning: SimpleStreamOptions["reasoning"],
 ): void {
   payload.thinking = { type: reasoning ? "enabled" : "disabled" };
+
+  if (reasoning) {
+    backfillAssistantReasoningContent(payload);
+  }
+}
+
+function backfillAssistantReasoningContent(
+  payload: Record<string, unknown>,
+): void {
+  if (!Array.isArray(payload.messages)) return;
+
+  for (const message of payload.messages) {
+    if (!message || typeof message !== "object") continue;
+
+    const assistantMessage = message as Record<string, unknown>;
+    if (assistantMessage.role !== "assistant") continue;
+    if ("reasoning_content" in assistantMessage) continue;
+
+    // [tag:deepseek_reasoning_replay] DeepSeek thinking mode requires
+    // assistant turns to carry this key when replayed, even if a short prior
+    // turn streamed no reasoning_content.
+    assistantMessage.reasoning_content = "";
+  }
 }
 
 export function createDeepSeekStreamSimple(

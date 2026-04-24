@@ -139,6 +139,26 @@ test("applyDeepSeekThinkingPayload enables thinking when Pi thinking is selected
   assert.deepEqual(payload.thinking, { type: "enabled" });
 });
 
+test("applyDeepSeekThinkingPayload backfills empty reasoning content for thinking replay", () => {
+  const payload: Record<string, unknown> = {
+    messages: [
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "ok" },
+      { role: "assistant", content: "ok", reasoning_content: "kept" },
+      { role: "tool", content: "done", tool_call_id: "call_1" },
+    ],
+  };
+
+  applyDeepSeekThinkingPayload(payload, "high");
+
+  assert.deepEqual(payload.messages, [
+    { role: "user", content: "hi" },
+    { role: "assistant", content: "ok", reasoning_content: "" },
+    { role: "assistant", content: "ok", reasoning_content: "kept" },
+    { role: "tool", content: "done", tool_call_id: "call_1" },
+  ]);
+});
+
 test("createDeepSeekStreamSimple preserves caller payload replacement and applies thinking toggle", async () => {
   const recorder = createCapturedInvocationRecorder();
   const streamSimple = createDeepSeekStreamSimple(recorder.baseStream as never);
