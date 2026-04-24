@@ -1,8 +1,4 @@
-# pi-custom-provider-deepseek
-
-<p align="center">
-  <img src="images/banner.png" alt="pi-custom-provider-deepseek hero banner" width="100%">
-</p>
+![pi-custom-provider-deepseek-banner](images/banner.png)
 
 DeepSeek OpenAI-compatible custom provider for Pi.
 
@@ -16,10 +12,10 @@ The provider uses:
 
 This package exposes the two DeepSeek v4 models requested for Pi agent use.
 
-| Model ID | Display name | Context window | Max output | Thinking |
-|---|---|---:|---:|---|
-| `deepseek-v4-pro` | `DeepSeek V4 Pro` | 1,000,000 | 384,000 | yes |
-| `deepseek-v4-flash` | `DeepSeek V4 Flash` | 1,000,000 | 384,000 | yes |
+| Model ID            | Display name        | Context window | Max output | Thinking |
+|---------------------|---------------------|---------------:|-----------:|----------|
+| `deepseek-v4-pro`   | `DeepSeek V4 Pro`   |      1,000,000 |    384,000 | yes      |
+| `deepseek-v4-flash` | `DeepSeek V4 Flash` |      1,000,000 |    384,000 | yes      |
 
 The context and output limits follow DeepSeek's published v4 model metadata:
 - context length: 1M
@@ -47,13 +43,13 @@ The provider also maps Pi thinking effort onto DeepSeek's documented OpenAI-form
 
 ## Install
 
-From this package directory:
-
 ```bash
-bun install
-```
+# Install globally
+pi install git:github.com/vedang/pi-custom-provider-deepseek
 
-Then add this package as a Pi package or extension according to your local Pi setup.
+# Or install for just the current project
+pi install -l git:github.com/vedang/pi-custom-provider-deepseek
+```
 
 ## Usage
 
